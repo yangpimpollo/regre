@@ -1,0 +1,149 @@
+M <- matrix(c(1,2,3,4,5,6), nrow = 3, ncol = 2)
+
+M = cbind(matrix(8, nrow = 3, ncol = 1),M)
+
+#    producto de matrices    %*%
+#    inversa de matrices     solve(M)
+diag(3)
+
+#   model <- lm(y ~ x)
+#   summary(model)
+#   sigma(model)
+#   anova(model)
+#   confint(model, level = 0.95)
+
+# Bmco=(x'x)^-1 x' y
+# Bmco <- solve(t(x) %*% x) %*% t(x) %*% y
+
+#  qnorm(1 - 0.05/2)=1.96               0.025  ---  0.025    95% de confianza
+#  qt(1 - 0.05/2, df)                  t-student 2 colas
+
+////----------------------------------------------------------------
+ANVA
+
+
+prueba_significancia_general <- function(X, Y, alpha=0.05) {
+    
+  p = ncol(X)-1
+  n = nrow(Y)
+
+  Hx = X %*% solve(t(X) %*% X ) %*% t(X)
+  Jn = matrix(1/n, n, n)
+    
+  SCE = t(Y) %*% (Hx - Jn) %*% Y
+  SCR = t(Y) %*% (diag(n) - Hx) %*% Y
+  SCT = t(Y) %*% (diag(n) - Jn) %*% Y
+    
+  CME = SCE/p
+  CMR = SCR/(n-p-1)
+    
+  Fc = CME/CMR
+  F_tabla = qf(1-alpha, p, n-p-1)
+
+  print("ANVA")
+  
+  tabla_anva = matrix(NA, nrow = 3, ncol = 5)
+  tabla_anva = as.data.frame(tabla_anva)
+  names(tabla_anva) = c('Fuente', 'GL', 'SC', 'CM', 'Fc')
+  tabla_anva[,'Fuente'] = c('regresion', 'residual', 'Total')
+  tabla_anva[,'GL'] = c(p, n-p-1, n)
+  tabla_anva[,'SC'] = c(SCE, SCR, SCT)
+  tabla_anva[,'CM'] = c(CME, CMR, NA)
+  tabla_anva[,'Fc'] = c(Fc, NA,  NA)
+  View(tabla_anva)
+  
+  
+  print(paste("el F calculado vale:", Fc))
+  print(paste("el F tabla vale:", F_tabla))
+  print(paste("la varianza residual:", CMR))
+  print(paste("error estandar:", CMR**0.5))
+    
+  if(Fc <= F_tabla){
+    sprintf('No se rechaza H0 al %s de significancia', alpha)
+  }else{
+    sprintf('Se rechaza H0 al %s de significancia', alpha)
+  }
+    
+}
+
+---------------------------------------------------
+x <- matrix(c(1,1,1,1,1,1,
+              -10,0,10,-10,0,10,
+             0,-5,5,0,5,-5), nrow = 6, ncol = 3)
+
+y <- matrix(c(11,8,73,21,46,30), nrow = 6, ncol = 1)
+
+prueba_significancia_general(x, y, alpha=0.05)
+
+--------------------------------------------------------------------------------------
+anva sub grupo
+
+prueba_significancia_subgrupo <- function(X, Y, alpha=0.05, va_interes) {
+  
+  p = ncol(X)-1
+  n = nrow(Y)
+  k = length(va_interes)
+  
+  X1 <- X[, -(va_interes+1)]
+  Hx = X %*% solve(t(X) %*% X ) %*% t(X)
+  Hx1 = X1 %*% solve(t(X1) %*% X1 ) %*% t(X1)
+  
+  SCEB1 = t(Y) %*% Hx1 %*% Y
+  SCEB2B1 = t(Y) %*% (Hx - Hx1) %*% Y
+  SCR = t(Y) %*% (diag(n) - Hx) %*% Y
+  SCT = t(Y) %*% Y
+  
+  CMEB1 = SCEB1/(p+1-k)
+  CMEB2B1 = SCEB2B1/(k)
+  CMR = SCR/(n-p-1)
+  
+  Fc = CMEB2B1/CMR
+  F_tabla = qf(1-alpha, k, n-p-1)
+  
+  print("ANVA")
+  
+  tabla_anva = matrix(NA, nrow = 4, ncol = 5)
+  tabla_anva = as.data.frame(tabla_anva)
+  names(tabla_anva) = c('Fuente', 'GL', 'SC', 'CM', 'Fc')
+  tabla_anva[,'Fuente'] = c('β1', 'β2|β2', 'residual', 'Total')
+  tabla_anva[,'GL'] = c(p+1-k, k, n-p-1, n)
+  tabla_anva[,'SC'] = c(SCEB1, SCEB2B1, SCR, SCT)
+  tabla_anva[,'CM'] = c(CMEB1, CMEB2B1, CMR, NA)
+  tabla_anva[,'Fc'] = c(NA, Fc, NA,  NA)
+  View(tabla_anva)
+  
+  
+  print(paste("el F calculado vale:", Fc))
+  print(paste("el F tabla vale:", F_tabla))
+  if(Fc <= F_tabla){
+    sprintf('No se rechaza H0 al %s de significancia', alpha)
+  }else{
+    sprintf('Se rechaza H0 al %s de significancia', alpha)
+  }
+  
+}
+
+-----------------------------------------------------------------------
+
+# Simulamos Datos =======================================
+
+n = 2000
+x1 = rnorm(n, 15, 1)
+x2 = rnorm(n, 5, 2)
+x3 = rnorm(n, 2, 0.5)
+x4 = rnorm(n, 25, 5)
+e = rnorm(n)
+y = 50 + 0*x1 + 5*x2 + 0*x3 + 26*x4 + e
+
+base = data.frame(x1,x2,x3,x4,y)
+
+vec_unos = function(n) matrix(1, nrow = n, ncol = 1)
+
+Y = matrix(base[,'y'], ncol = 1)
+X = cbind(vec_unos(n),base[,c('x1','x2','x3','x4')])
+X = as.matrix(X)
+
+
+# Probamos la funcion =======================================
+
+prueba_significancia_subgrupo(X, Y,alpha = 0.01, va_interes=c(2, 3))
